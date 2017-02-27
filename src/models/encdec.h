@@ -94,7 +94,8 @@ class DecoderBase {
 
     virtual std::tuple<Expr, Expr, Expr>
     groundTruth(Ptr<ExpressionGraph> graph,
-                Ptr<data::CorpusBatch> batch) {
+                Ptr<data::CorpusBatch> batch,
+                size_t id=1) {
       using namespace keywords;
 
       int dimBatch  = batch->size();
@@ -103,7 +104,7 @@ class DecoderBase {
 
       auto yEmb = Embedding("Wemb_dec", dimTrgVoc, dimTrgEmb)(graph);
       Expr y, yMask, yIdx;
-      std::tie(y, yMask, yIdx) = prepareTarget(yEmb, batch, 1);
+      std::tie(y, yMask, yIdx) = prepareTarget(yEmb, batch, id);
       auto yEmpty = graph->zeros(shape={dimBatch, dimTrgEmb});
       auto yShifted = concatenate({yEmpty, y}, axis=2);
 

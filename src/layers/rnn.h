@@ -480,4 +480,89 @@ class AttentionCell {
     }
 };
 
+template <class Cell1, class Attention, class Cell2>
+class MultiAttentionCell {
+  private:
+    Ptr<Cell1> cell1_;
+    Ptr<Cell2> cell2_;
+
+    Ptr<Attention> att1_;
+    Ptr<Attention> att2_;
+
+    Expr Uatt1_;
+    Expr Uatt2_;
+
+    int dimState_;
+
+  public:
+
+    template <class ...Args>
+    AttentionCell(Ptr<ExpressionGraph> graph,
+                  const std::string prefix,
+                  int dimInput,
+                  int dimState,
+                  Ptr<Attention> att1,
+                  Ptr<Attention> att2,
+                  Args ...args)
+    : dimState_(dimsState)
+    {
+      cell1_ = New<Cell1>(graph,
+                          prefix + "_cell1",
+                          dimInput,
+                          dimState,
+                          keywords::final=false,
+                          args...);
+
+      att1_ = New<Attention>(att1);
+      att2_ = New<Attention>(att2);
+
+      int dimAtt = std::max(att1_->outputDim(), att2_->outputDim());
+
+      cell2_ = New<Cell2>(graph,
+                          prefix + "_cell2",
+                          dimAtt,
+                          dimState,
+                          keywords::final=true,
+                          args...);
+
+      Uatt1_ = graph->param("attMap1", {att1_->outputDim(), dimAtt},
+                            keywords::init=inits::glorot_uniform);
+      Uatt2_ = graph->param("attMap2", {att2_->outputDim(), dimAtt},
+                           keywords::init=inits::glorot_uniform);
+    }
+
+    Expr apply(Expr input, Expr state, Expr mask = nullptr) {
+      return apply2(apply1(input), state, mask);
+    }
+
+    Expr apply1(Expr input) {
+      return cell1_->apply1(input);
+    }
+
+    Expr apply2(Expr xW, Expr state, Expr mask = nullptr) {
+      auto hidden = cell1_->apply2(xW, state, mask);
+      auto alignedSourceContext1 = att1_->apply(hidden);
+      auto alignedSourceContext2 = att2_->apply(hidden);
+
+      auto alignedSourceContext =
+        dot(alignedSourceContext1, Uatt1_) +
+        dot(alignedSourceContext2, Uatt2_);
+
+      return cell2_->apply(alignedSourceContext, hidden, mask);
+    }
+
+    Ptr<Attention> getAttention() {
+      return att_;
+    }
+
+    Expr getContexts() {
+      return concatenate(att_->getContexts(), keywords::axis=2);
+    }
+
+    Expr getLastContext() {
+      return att_->getContexts().back();
+    }
+};
+
+
 }
