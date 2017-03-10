@@ -651,18 +651,18 @@ struct ReshapeNodeOp : public UnaryNodeOp {
   ReshapeNodeOp(Expr a, Shape shape, Args ...args)
     : UnaryNodeOp(a, keywords::shape=shape, args...) { }
 
-  size_t allocate() { return 0; }
-  void free() {}
+  size_t allocate(bool fake) { return 0; }
+  void free(bool fake) {}
 
-  void forward() {}
-  void backward() {}
+  void forward(bool fake) {}
+  void backward(bool fake) {}
 
-  void init_dependent() {
-    children_[0]->init_dependent();
+  void init_dependent(bool fake) {
+    children_[0]->init_dependent(fake);
   }
 
-  void set_zero_adjoint() {
-    children_[0]->set_zero_adjoint();
+  void set_zero_adjoint(bool fake) {
+    children_[0]->set_zero_adjoint(fake);
   }
 
   Tensor& val()  {
@@ -712,18 +712,18 @@ struct TimestepNodeOp : public UnaryNodeOp {
     return outShape;
   }
 
-  size_t allocate() { return 0; }
-  void free() {}
+  size_t allocate(bool fake) { return 0; }
+  void free(bool fake) {}
 
-  void forward() {}
-  void backward() {}
+  void forward(bool fake) {}
+  void backward(bool fake) {}
 
-  void init_dependent() {
-    children_[0]->init_dependent();
+  void init_dependent(bool fake) {
+    children_[0]->init_dependent(fake);
   }
 
-  void set_zero_adjoint() {
-    children_[0]->set_zero_adjoint();
+  void set_zero_adjoint(bool fake) {
+    children_[0]->set_zero_adjoint(fake);
   }
 
   Tensor& val()  {

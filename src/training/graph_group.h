@@ -220,7 +220,7 @@ class AsyncGraphGroup : public GraphGroup {
         graph->reserveWorkspaceMB(options_->get<size_t>("workspace"));
         graphs_.push_back(graph);
         shardOpt_.push_back(Optimizer(options_));
-        builders_.push_back(New<Builder>(options_));
+        builders_.push_back(New<Builder>(options_, false));
       }
 
       load();

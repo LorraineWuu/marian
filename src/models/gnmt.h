@@ -9,8 +9,8 @@ namespace marian {
 
   class EncoderGNMT : public EncoderBase {
   public:
-    EncoderGNMT(Ptr<Config> options)
-     : EncoderBase(options) {}
+    EncoderGNMT(Ptr<Config> options, bool inference)
+     : EncoderBase(options, inference) {}
 
     std::tuple<Expr, Expr>
     build(Ptr<ExpressionGraph> graph,
@@ -27,6 +27,11 @@ namespace marian {
       size_t encoderLayers = options_->get<size_t>("layers-enc");
       float dropoutRnn = options_->get<float>("dropout-rnn");
       float dropoutSrc = options_->get<float>("dropout-src");
+
+      if(inference_) {
+        dropoutRnn = 0;
+        dropoutSrc = 0;
+      }
 
       auto xEmb = Embedding("Wemb", dimSrcVoc, dimSrcEmb)(graph);
 
@@ -78,8 +83,8 @@ class DecoderGNMT : public DecoderBase {
     Ptr<GlobalAttention> attention_;
 
   public:
-    DecoderGNMT(Ptr<Config> options)
-     : DecoderBase(options) {}
+    DecoderGNMT(Ptr<Config> options, bool inference)
+     : DecoderBase(options, inference) {}
 
     virtual std::tuple<Expr, std::vector<Expr>>
     step(Expr embeddings,
@@ -98,6 +103,11 @@ class DecoderGNMT : public DecoderBase {
       float dropoutRnn = options_->get<float>("dropout-rnn");
       float dropoutTrg = options_->get<float>("dropout-trg");
 
+      if(inference_) {
+        dropoutRnn = 0;
+        dropoutTrg = 0;
+      }
+
       auto graph = embeddings->graph();
 
       if(dropoutTrg) {
@@ -115,8 +125,7 @@ class DecoderGNMT : public DecoderBase {
                       dimTrgEmb, dimDecState,
                       attention_,
                       normalize=layerNorm,
-                      dropout_prob=dropoutRnn
-                      );
+                      dropout_prob=dropoutRnn);
       auto stateL1 = rnnL1(embeddings, states[0]);
       auto alignedContext = single ?
         rnnL1.getCell()->getLastContext() :

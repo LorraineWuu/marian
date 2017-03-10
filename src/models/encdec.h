@@ -13,6 +13,7 @@ namespace marian {
 class EncoderBase {
   protected:
     Ptr<Config> options_;
+    bool inference_;
 
     virtual std::tuple<Expr, Expr>
     prepareSource(Expr emb, Ptr<data::CorpusBatch> batch, size_t index) {
@@ -39,8 +40,10 @@ class EncoderBase {
     }
 
   public:
-    EncoderBase(Ptr<Config> options)
-     : options_(options) {}
+    EncoderBase(Ptr<Config> options, bool inference)
+     : options_(options),
+       inference_(inference)
+    {}
 
     virtual std::tuple<Expr, Expr>
     build(Ptr<ExpressionGraph>, Ptr<data::CorpusBatch>, size_t = 0) = 0;
@@ -49,6 +52,7 @@ class EncoderBase {
 class DecoderBase {
   protected:
     Ptr<Config> options_;
+    bool inference_;
 
     virtual std::tuple<Expr, Expr, Expr>
     prepareTarget(Expr emb, Ptr<data::CorpusBatch> batch, size_t index) {
@@ -89,8 +93,10 @@ class DecoderBase {
     }
 
   public:
-    DecoderBase(Ptr<Config> options)
-     : options_(options) {}
+    DecoderBase(Ptr<Config> options, bool inference)
+     : options_(options),
+       inference_(inference)
+       {}
 
     virtual std::tuple<Expr, Expr, Expr>
     groundTruth(Ptr<ExpressionGraph> graph,
@@ -135,13 +141,15 @@ class Seq2Seq {
     Ptr<Config> options_;
     Ptr<EncoderBase> encoder_;
     Ptr<DecoderBase> decoder_;
+    bool inference_;
 
   public:
 
-    Seq2Seq(Ptr<Config> options)
+    Seq2Seq(Ptr<Config> options, bool inference)
      : options_(options),
-       encoder_(New<Encoder>(options)),
-       decoder_(New<Decoder>(options))
+       encoder_(New<Encoder>(options, inference)),
+       decoder_(New<Decoder>(options, inference)),
+       inference_(inference)
     {}
 
      virtual void load(Ptr<ExpressionGraph> graph,
@@ -159,8 +167,8 @@ class Seq2Seq {
                  Ptr<data::CorpusBatch> batch) {
       using namespace keywords;
       graph->clear();
-      encoder_ = New<Encoder>(options_);
-      decoder_ = New<Decoder>(options_);
+      encoder_ = New<Encoder>(options_, inference_);
+      decoder_ = New<Decoder>(options_, inference_);
 
       Expr srcContext, srcMask;
       std::tie(srcContext, srcMask) = encoder_->build(graph, batch);

@@ -94,18 +94,19 @@ class DeviceGPU {
   private:
     float* data_;
     size_t size_;
+    size_t peak_;
     size_t device_;
 
   public:
     DeviceGPU(size_t device)
-    : data_(0), size_(0), device_(device) {
+    : data_(0), size_(0), peak_{0}, device_(device) {
    }
 
     ~DeviceGPU();
 
     typedef TensorBase tensor_type;
 
-    void reserve(size_t size);
+    void reserve(size_t size, bool fake);
 
     float* data() {
       return data_;
@@ -114,7 +115,11 @@ class DeviceGPU {
     size_t capacity() {
       return size_;
     }
-    
+
+    size_t peak() {
+      return peak_;
+    }
+
     size_t getDevice() {
       return device_;
     }

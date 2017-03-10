@@ -4,33 +4,35 @@
 
 namespace marian {
 
-size_t Node::allocate() {
+size_t Node::allocate(bool fake) {
   size_t elements = 0;
   if(!val_) {
-    graph_->tensor(val_, shape_);
+    graph_->tensor(val_, shape_, fake);
     elements = val_->shape().elements();
   }
   return elements;
 }
 
-void Node::free() {
+void Node::free(bool fake) {
   if(val_)
-    graph_->free(val_);
+    graph_->free(val_, fake);
   if(adj_)
-    graph_->free(adj_);
+    graph_->free(adj_, fake);
 }
 
-void Node::init_dependent() {
+void Node::init_dependent(bool fake) {
   if(!adj_) {
-    graph_->tensor(adj_, shape_);
-    adj_->set(1);
+    graph_->tensor(adj_, shape_, fake);
+    if(!fake)
+      adj_->set(1);
   }
 }
 
-void Node::set_zero_adjoint() {
+void Node::set_zero_adjoint(bool fake) {
   if(!adj_) {
-    graph_->tensor(adj_, shape_);
-    adj_->set(0);
+    graph_->tensor(adj_, shape_, fake);
+    if(!fake)
+      adj_->set(0);
   }
 }
 

@@ -85,26 +85,27 @@ class Parameters {
       named_[name] = p;
     }
 
-    void allocateForward() {
+    void allocateForward(bool fake) {
       if(vals_->capacity() == 0) {
-        vals_->reserveExact(totalSize());
+        vals_->reserveExact(totalSize(), fake);
         for(auto p: params_)
           if(!p->val())
-            vals_->allocate(p->val(), p->shape());
+            vals_->allocate(p->val(), p->shape(), fake);
       }
     }
 
-    void allocateBackward() {
+    void allocateBackward(bool fake) {
       if(grads_->capacity() == 0) {
-        grads_->reserveExact(totalSize());
+        grads_->reserveExact(totalSize(), fake);
         for(auto p: params_)
           if(!p->grad())
-            grads_->allocate(p->grad(), p->shape());
+            grads_->allocate(p->grad(), p->shape(), fake);
       }
     }
 
-    void set_zero_adjoint() {
-      grads()->set(0);
+    void set_zero_adjoint(bool fake) {
+      if(!fake)
+        grads()->set(0);
     }
 
     Tensor vals() {

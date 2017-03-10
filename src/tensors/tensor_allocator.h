@@ -77,19 +77,19 @@ class TensorAllocator {
       return it;
     }
 
-    auto checkSpace(Shape shape) -> decltype(gaps_.begin()) {
+    auto checkSpace(Shape shape, bool fake) -> decltype(gaps_.begin()) {
       auto gapIt = getGap(shape);
       if(gapIt == gaps_.end()) {
         size_t incr = device_.capacity() - lastGap_.first + shape.elements();
-        reserve(device_.capacity() + incr);
+        reserve(device_.capacity() + incr, fake);
         gapIt = gaps_.find(lastGap_);
       }
       return gapIt;
     }
 
   public:
-    TensorAllocator(size_t device)
-     : device_(device) {
+    TensorAllocator(size_t deviceNo)
+     : device_(deviceNo) {
       lastGap_ = { device_.capacity(), device_.data() };
       gaps_.insert(lastGap_);
     }
@@ -98,25 +98,29 @@ class TensorAllocator {
       clear();
     }
 
-    void reserve(size_t elements = 0) {
+    void reserve(size_t elements, bool fake=false) {
       float mult = elements / FLOATS + 1;
-      LOG(memory) << "Extending reserved space to "
-        << mult * CHUNK << " MB (device " << device_.getDevice() << ")";
+
+      if(!fake)
+        LOG(memory) << "Extending reserved space to "
+          << mult * CHUNK << " MB (device " << device_.getDevice() << ")";
 
       size_t old = device_.capacity();
       float* oldStart = device_.data();
-      device_.reserve(mult * FLOATS);
+      device_.reserve(mult * FLOATS, fake);
       resetAllocated(oldStart);
     }
 
-    void reserveExact(size_t elements = 0) {
+    void reserveExact(size_t elements, bool fake=false) {
       size_t mbytes = (elements * sizeof(float)) / MBYTE;
-      LOG(memory) << "Reserving space for " << elements
-        << " floats (" << mbytes << " MB, device " << device_.getDevice() << ")";
+
+      if(!fake)
+        LOG(memory) << "Reserving space for " << elements
+          << " floats (" << mbytes << " MB, device " << device_.getDevice() << ")";
 
       size_t old = device_.capacity();
       float* oldStart = device_.data();
-      device_.reserve(elements);
+      device_.reserve(elements, fake);
       resetAllocated(oldStart);
     }
 
@@ -127,9 +131,9 @@ class TensorAllocator {
       allocated_.clear();
     }
 
-    void allocate(Tensor &t, Shape shape) {
+    void allocate(Tensor &t, Shape shape, bool fake=false) {
       if(!t || t->shape() != shape) {
-        auto it = checkSpace(shape);
+        auto it = checkSpace(shape, fake);
         float* start = it->second;
         t.reset(new TensorBase(start, shape, device_.getDevice()));
         allocated_.push_back(t);
@@ -139,7 +143,7 @@ class TensorAllocator {
       }
     }
 
-    void free(Tensor& t) {
+    void free(Tensor& t, bool fake=false) {
       auto it = allocated_.rbegin();
       while(it != allocated_.rend()) {
         if(*it == t) {
@@ -176,6 +180,10 @@ class TensorAllocator {
 
     size_t capacity() {
       return device_.capacity();
+    }
+
+    size_t peak() {
+      return device_.peak();
     }
 
     size_t size() {

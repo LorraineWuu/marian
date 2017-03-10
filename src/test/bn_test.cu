@@ -38,7 +38,7 @@ int main(int argc, char** argv) {
   {
     auto graph = New<ExpressionGraph>();
     graph->setDevice(0);
-    graph->reserveWorkspaceMB(128);
+    graph->reserveWorkspaceMB(128, true);
 
     auto x = graph->param("x", {batchSize, 3072}, init=inits::from_vector(temp));
     auto gamma = graph->param("gamma", {1, 3072}, init=inits::from_value(2.0));
@@ -63,8 +63,10 @@ int main(int argc, char** argv) {
     debug(gamma, "gamma");
     debug(beta, "beta");
 
-    graph->forward();
-    graph->backward();
+    graph->forward(true);
+    std::cerr << graph->reservedWorkspaceMB() << std::endl;
+    graph->backward(true);
+    std::cerr << graph->reservedWorkspaceMB() << std::endl;
   }
 
   /*{

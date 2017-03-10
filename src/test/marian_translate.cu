@@ -214,13 +214,13 @@ int main(int argc, char** argv) {
   BatchGenerator<Corpus> bg(corpus, options);
 
   auto graph = New<ExpressionGraph>();
-  graph->setDevice(1);
+  graph->setDevice(0);
 
   auto target = New<Vocab>();
   target->load("../benchmark/marian32K/train.tok.true.bpe.de.json", 50000);
 
-  auto encdec = New<GNMT>(options);
-  encdec->load(graph, "../benchmark/marian32K/model9.90000.npz");
+  auto encdec = New<GNMT>(options, true);
+  encdec->load(graph, "../benchmark/marian32K/model15.120000.npz");
 
   graph->reserveWorkspaceMB(128);
 

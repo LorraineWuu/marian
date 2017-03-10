@@ -317,20 +317,24 @@ struct ConcatenateNodeOp : public NaryNodeOp {
     return shape;
   }
 
-  void forward() {
-    std::vector<Tensor> concatenees;
-    for(auto child : children_)
-      concatenees.push_back(child->val());
-    Concatenate(val_, concatenees, ax_);
+  void forward(bool fake) {
+    if(!fake) {
+      std::vector<Tensor> concatenees;
+      for(auto child : children_)
+        concatenees.push_back(child->val());
+      Concatenate(val_, concatenees, ax_);
+    }
   }
 
-  void backward() {
-    std::vector<Tensor> deconcatenees;
-    for(auto child : children_) {
-      child->set_zero_adjoint(); // @TODO: this is a hotfix, do this properly
-      deconcatenees.push_back(child->grad());
+  void backward(bool fake) {
+    if(!fake) {
+      std::vector<Tensor> deconcatenees;
+      for(auto child : children_) {
+        child->set_zero_adjoint(fake); // @TODO: this is a hotfix, do this properly
+        deconcatenees.push_back(child->grad());
+      }
+      Deconcatenate(deconcatenees, adj_, ax_);
     }
-    Deconcatenate(deconcatenees, adj_, ax_);
   }
 
   virtual size_t hash() {
@@ -364,19 +368,21 @@ struct TanhPlus3NodeOp : public NaryNodeOp {
     return shape;
   }
 
-  void forward() {
-    Element(_1 = Tanh(_2 + _3 + _4),
-            val_,
-            children_[0]->val(),
-            children_[1]->val(),
-            children_[2]->val());
+  void forward(bool fake) {
+    if(!fake)
+      Element(_1 = Tanh(_2 + _3 + _4),
+              val_,
+              children_[0]->val(),
+              children_[1]->val(),
+              children_[2]->val());
   }
 
-  void backward() {
-    for(auto&& child : children_)
-      if(child->trainable())
-        Add((1.f - _1 * _1) * _2,
-            child->grad(), val_, adj_);
+  void backward(bool fake) {
+    if(!fake)
+      for(auto&& child : children_)
+        if(child->trainable())
+          Add((1.f - _1 * _1) * _2,
+              child->grad(), val_, adj_);
   }
 
   const std::string type() {

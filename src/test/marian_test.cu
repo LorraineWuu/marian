@@ -38,10 +38,10 @@ int main(int argc, char** argv) {
   auto graph = New<ExpressionGraph>();
   graph->setDevice(1);
 
-  auto encdec = New<GNMT>(options);
+  auto encdec = New<GNMT>(options, false);
   encdec->load(graph, "../benchmark/marian32K/model9.10000.npz");
 
-  graph->reserveWorkspaceMB(128);
+  graph->reserveWorkspaceMB(128, true);
 
   boost::timer::cpu_timer timer;
   size_t batches = 1;
@@ -54,12 +54,12 @@ int main(int argc, char** argv) {
       auto costNode = encdec->build(graph, batch);
       //for(auto p : graph->params())
         //debug(p, p->name());
-      debug(costNode, "cost");
+      //debug(costNode, "cost");
 
       //graph->graphviz("debug.dot");
 
-      graph->forward();
-      //graph->backward();
+      graph->forward(true);
+      graph->backward(true);
 
       batches++;
     }

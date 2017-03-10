@@ -70,7 +70,7 @@ namespace marian {
       CrossEntropyValidator(std::vector<Ptr<Vocab>> vocabs,
                             Ptr<Config> options)
        : Validator(vocabs, options),
-         builder_(New<Builder>(options)) {}
+         builder_(New<Builder>(options, true)) {}
 
       float validate(Ptr<ExpressionGraph> graph,
                      Ptr<data::BatchGenerator<data::Corpus>> batchGenerator) {
@@ -101,7 +101,7 @@ namespace marian {
       PerplexityValidator(std::vector<Ptr<Vocab>> vocabs,
                           Ptr<Config> options)
        : Validator(vocabs, options),
-         builder_(New<Builder>(options)) {}
+         builder_(New<Builder>(options, true)) {}
 
       float validate(Ptr<ExpressionGraph> graph,
                      Ptr<data::BatchGenerator<data::Corpus>> batchGenerator) {

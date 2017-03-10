@@ -67,8 +67,8 @@ struct ConstantNode : public Node {
 
   ~ConstantNode() {}
 
-  virtual size_t allocate();
-  virtual void init();
+  virtual size_t allocate(bool);
+  virtual void init(bool);
 
   const std::string type() {
     return "const";
@@ -106,9 +106,9 @@ struct ParamNode : public Node {
 
   ~ParamNode() {}
 
-  virtual size_t allocate();
+  virtual size_t allocate(bool);
 
-  virtual void init();
+  virtual void init(bool);
 
   const std::string type() {
     return "param";

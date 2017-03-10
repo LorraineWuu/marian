@@ -90,9 +90,13 @@ class ExpressionGraph : public std::enable_shared_from_this<ExpressionGraph> {
       return device_;
     }
 
-    void reserveWorkspaceMB(size_t num) {
+    void reserveWorkspaceMB(size_t num, bool fake=false) {
       size_t elements = num * 1024 * 1024 / 4 - 1;
-      tensors_->reserve(elements);
+      tensors_->reserve(elements, fake);
+    }
+
+    size_t reservedWorkspaceMB() {
+      return (tensors_->peak() * 4) / (1024 * 1024);
     }
 
     /**
@@ -107,36 +111,20 @@ class ExpressionGraph : public std::enable_shared_from_this<ExpressionGraph> {
       backward();
     }
 
-    /**
-     * @brief Perform the forward pass of algorithmic differentiation (AD) on this graph.
-     *
-     * This pass traverses the nodes of this graph in the order they were created;
-     *    as each node is traversed, its <code>allocate()</code> method is called.
-     *
-     * Once allocation is complete for all nodes, this pass again traverses the nodes, in creation order;
-     *    as each node is traversed, its <code>forward()</code> method is called.
-     *
-     * After this method has successfully completed,
-     *    it is guaranteed that all node allocation has been completed,
-     *    and that all forward pass computations have been performed.
-     *
-     * @param batchSize       XXX Marcin, could you provide a description of this param?
-     */
-
-    size_t forward() {
-      params_.allocateForward();
-      return forward(0);
+    size_t forward(bool fake=false) {
+      params_.allocateForward(fake);
+      return forward(0, fake);
     }
 
-    size_t forward(size_t pos) {
+    size_t forward(size_t pos, bool fake=false) {
       // @TODO: check if allocation works properly
 
       auto it = nodes_.begin() + pos;
       while(it != nodes_.end()) {
         auto v = *it;
-        v->allocate();
-        v->init();
-        v->forward();
+        v->allocate(fake);
+        v->init(fake);
+        v->forward(fake);
 
         // @TODO: should be done in node
         for(auto&& child : v->children()) {
@@ -144,7 +132,7 @@ class ExpressionGraph : public std::enable_shared_from_this<ExpressionGraph> {
           child->decreaseEdges(1);
         }
 
-        if(v->marked_for_debug()) {
+        if(v->marked_for_debug() && !fake) {
           std::cerr << "Debug: " << v->debug_message() << std::endl;
           std::cerr << v->val()->debug() << std::endl;
         }
@@ -165,15 +153,15 @@ class ExpressionGraph : public std::enable_shared_from_this<ExpressionGraph> {
      * After this method has successfully completed,
      *    and that all backward pass computations have been performed.
      */
-    void backward() {
+    void backward(bool fake=false) {
       UTIL_THROW_IF2(topNodes_.size() > 1,
         "There are more than one top most node for backward step");
 
-      params_.allocateBackward();
-      params_.set_zero_adjoint();
+      params_.allocateBackward(fake);
+      params_.set_zero_adjoint(fake);
 
       for(auto&& v : topNodes_)
-        v->init_dependent();
+        v->init_dependent(fake);
 
       auto it = nodes_.rbegin();
       while(it != nodes_.rend()) {
@@ -181,22 +169,22 @@ class ExpressionGraph : public std::enable_shared_from_this<ExpressionGraph> {
 
         for(auto&& child: v->children())
           if(child->trainable())
-            child->set_zero_adjoint();
+            child->set_zero_adjoint(fake);
         if(v->trainable())
-          v->backward();
+          v->backward(fake);
         for(auto&& child : v->children()) {
           v->decreaseEdges(1);
           child->decreaseEdges(1);
         }
 
-        if(v->trainable() && v->marked_for_debug()) {
+        if(v->trainable() && v->marked_for_debug() && !fake) {
           std::cerr << "Debug Grad: " << v->debug_message() << std::endl;
           std::cerr << v->grad()->debug() << std::endl;
         }
 
         // delete unnamed nodes
         if(v->edges() == 0 && v->name() == "none")
-          v->free();
+          v->free(fake);
 
         it++;
       }
@@ -431,8 +419,8 @@ class ExpressionGraph : public std::enable_shared_from_this<ExpressionGraph> {
       tensors_->allocate(t, args...);
     }
 
-    void free(Tensor& t) {
-      tensors_->free(t);
+    void free(Tensor& t, bool fake) {
+      tensors_->free(t, fake);
     }
 
     void clear() {

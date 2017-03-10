@@ -190,27 +190,31 @@ DeviceGPU::~DeviceGPU() {
   cudaDeviceSynchronize();
 }
 
-void DeviceGPU::reserve(size_t size) {
-   cudaSetDevice(device_);
+void DeviceGPU::reserve(size_t size, bool fake) {
+  cudaSetDevice(device_);
 
-   UTIL_THROW_IF2(size < size_, "New size must be larger than old size");
+  UTIL_THROW_IF2(size < size_, "New size must be larger than old size");
 
-   if(data_) {
-     // Allocate memory by going through host memory
-     float *temp = new float[size_];
-     CUDA_CHECK(cudaMemcpy(temp, data_, size_* sizeof(float),
-                cudaMemcpyDeviceToHost));
-     CUDA_CHECK(cudaFree(data_));
-     CUDA_CHECK(cudaMalloc(&data_, size * sizeof(float)));
-     CUDA_CHECK(cudaMemcpy(data_, temp, size_* sizeof(float),
-                cudaMemcpyHostToDevice));
-     delete[] temp;
-   }
-   else {
+  if(!fake) {
+    if(data_) {
+      // Allocate memory by going through host memory
+      float *temp = new float[size_];
+      CUDA_CHECK(cudaMemcpy(temp, data_, size_* sizeof(float),
+                 cudaMemcpyDeviceToHost));
+      CUDA_CHECK(cudaFree(data_));
       CUDA_CHECK(cudaMalloc(&data_, size * sizeof(float)));
-   }
+      CUDA_CHECK(cudaMemcpy(data_, temp, size_* sizeof(float),
+                 cudaMemcpyHostToDevice));
+      delete[] temp;
+    }
+    else {
+       CUDA_CHECK(cudaMalloc(&data_, size * sizeof(float)));
+    }
+  }
 
-   size_ = size;
+  size_ = size;
+  if(size_ > peak_)
+    peak_ = size_;
 }
 
 Tensor operator<<(Tensor t, const std::vector<float>& v) {
