@@ -329,7 +329,7 @@ class GRU {
   private:
     std::string prefix_;
 
-    Expr U_, W_, b_, Ux_, Wx_, bx_;
+    Expr U_, W_, b_, Ux_, Wx_;
     Expr gamma1_;
     Expr gamma2_;
 
@@ -355,18 +355,18 @@ class GRU {
                                keywords::init=inits::glorot_uniform);
       W_ = graph->param(prefix + "_W", {dimInput, 2 * dimState},
                                keywords::init=inits::glorot_uniform);
-      b_ = graph->param(prefix + "_b", {1, 2 * dimState},
+      auto b = graph->param(prefix + "_b", {1, 2 * dimState},
                                keywords::init=inits::zeros);
       Ux_ = graph->param(prefix + "_Ux", {dimState, dimState},
                                 keywords::init=inits::glorot_uniform);
       Wx_ = graph->param(prefix + "_Wx", {dimInput, dimState},
                                 keywords::init=inits::glorot_uniform);
-      bx_ = graph->param(prefix + "_bx", {1, dimState},
+      auto bx = graph->param(prefix + "_bx", {1, dimState},
                                 keywords::init=inits::zeros);
 
       //U_ = concatenate({U, Ux}, keywords::axis=1);
       //W_ = concatenate({W, Wx}, keywords::axis=1);
-      //b_ = concatenate({b, bx}, keywords::axis=1);
+      b_ = concatenate({b, bx}, keywords::axis=1);
 
       final_ = Get(keywords::final, false, args...);
       layerNorm_ = Get(keywords::normalize, false, args...);
@@ -415,9 +415,11 @@ class GRU {
         state = dropout(state, keywords::mask=dropMaskS_);
         statex = dropout(statex, keywords::mask=dropMaskSx_);
       }
-      state = concatenate({state, statex}, keywords::axis=1);
 
       auto sU = dot(state, U_);
+      auto sUx = dot(statex, Ux_);
+
+      sU = concatenate({sU, sUx}, keywords::axis=1);
 
       if(layerNorm_)
         sU = layer_norm(sU, gamma2_);

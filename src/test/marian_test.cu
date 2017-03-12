@@ -72,7 +72,7 @@ int main(int argc, char** argv) {
       //graph->graphviz("debug.dot");
 
       graph->forward();
-      //graph->backward();
+      graph->backward();
 
       batches++;
     }
