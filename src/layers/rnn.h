@@ -329,7 +329,7 @@ class GRU {
   private:
     std::string prefix_;
 
-    Expr U_, W_, b_;
+    Expr U_, W_, b_, Ux_, Wx_, bx_;
     Expr gamma1_;
     Expr gamma2_;
 
@@ -339,6 +339,8 @@ class GRU {
 
     Expr dropMaskX_;
     Expr dropMaskS_;
+    Expr dropMaskXx_;
+    Expr dropMaskSx_;
 
   public:
 
@@ -349,22 +351,22 @@ class GRU {
         int dimState,
         Args ...args) : prefix_(prefix) {
 
-      auto U = graph->param(prefix + "_U", {dimState, 2 * dimState},
+      U_ = graph->param(prefix + "_U", {dimState, 2 * dimState},
                                keywords::init=inits::glorot_uniform);
-      auto W = graph->param(prefix + "_W", {dimInput, 2 * dimState},
+      W_ = graph->param(prefix + "_W", {dimInput, 2 * dimState},
                                keywords::init=inits::glorot_uniform);
-      auto b = graph->param(prefix + "_b", {1, 2 * dimState},
+      b_ = graph->param(prefix + "_b", {1, 2 * dimState},
                                keywords::init=inits::zeros);
-      auto Ux = graph->param(prefix + "_Ux", {dimState, dimState},
+      Ux_ = graph->param(prefix + "_Ux", {dimState, dimState},
                                 keywords::init=inits::glorot_uniform);
-      auto Wx = graph->param(prefix + "_Wx", {dimInput, dimState},
+      Wx_ = graph->param(prefix + "_Wx", {dimInput, dimState},
                                 keywords::init=inits::glorot_uniform);
-      auto bx = graph->param(prefix + "_bx", {1, dimState},
+      bx_ = graph->param(prefix + "_bx", {1, dimState},
                                 keywords::init=inits::zeros);
 
-      U_ = concatenate({U, Ux}, keywords::axis=1);
-      W_ = concatenate({W, Wx}, keywords::axis=1);
-      b_ = concatenate({b, bx}, keywords::axis=1);
+      //U_ = concatenate({U, Ux}, keywords::axis=1);
+      //W_ = concatenate({W, Wx}, keywords::axis=1);
+      //b_ = concatenate({b, bx}, keywords::axis=1);
 
       final_ = Get(keywords::final, false, args...);
       layerNorm_ = Get(keywords::normalize, false, args...);
@@ -373,6 +375,8 @@ class GRU {
       if(dropout_> 0.0f) {
         dropMaskX_ = graph->dropout(dropout_, {1, dimInput});
         dropMaskS_ = graph->dropout(dropout_, {1, dimState});
+        dropMaskXx_ = graph->dropout(dropout_, {1, dimInput});
+        dropMaskSx_ = graph->dropout(dropout_, {1, dimState});
       }
 
       if(layerNorm_) {
@@ -389,10 +393,15 @@ class GRU {
     }
 
     Expr apply1(Expr input) {
-      if(dropMaskX_)
+      Expr inputx = input;
+      if(dropMaskX_) {
         input = dropout(input, keywords::mask=dropMaskX_);
+        inputx = dropout(inputx, keywords::mask=dropMaskXx_);
+      }
 
       auto xW = dot(input, W_);
+      auto xWx = dot(inputx, Wx_);
+      xW = concatenate({xW, xWx}, keywords::axis=1);
 
       if(layerNorm_)
         xW = layer_norm(xW, gamma1_);
@@ -401,8 +410,12 @@ class GRU {
 
     Expr apply2(Expr xW, Expr state,
                 Expr mask = nullptr) {
-      if(dropMaskS_)
+      auto statex = state;
+      if(dropMaskS_) {
         state = dropout(state, keywords::mask=dropMaskS_);
+        statex = dropout(statex, keywords::mask=dropMaskSx_);
+      }
+      state = concatenate({state, statex}, keywords::axis=1);
 
       auto sU = dot(state, U_);
 
@@ -450,8 +463,8 @@ class AttentionCell {
                           prefix + "_cell2",
                           att_->outputDim(),
                           dimState,
-                          keywords::final=true /*,
-                          args...*/);
+                          keywords::final=true,
+                          args...);
     }
 
     Expr apply(Expr input, Expr state, Expr mask = nullptr) {
